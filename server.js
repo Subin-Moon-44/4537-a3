@@ -9,7 +9,7 @@ const { connectDB } = require('./connectDB');
 const { handleErr } = require('./errorHandler');
 const { asyncWrapper } = require('./asyncWrapper');
 const pokemonApi = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
-const port = process.env.PORT || 3000;
+const port = process.env.appServerPORT || 3000;
 
 const {
     PokemonBadRequest,
@@ -28,27 +28,27 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// const start = asyncWrapper(async () => {
-//     await connectDB({ "drop": false });
+const start = asyncWrapper(async () => {
+    await connectDB({ "drop": false });
 
-//     app.listen(port, async () => {
-//         console.log(`Server running at http://localhost:${port}`);
+    app.listen(port, async () => {
+        console.log(`Server running at http://localhost:${port}`);
 
-//         // grab the pokemon data from the url
-//         const pokemons = await axios.get(pokemonApi);
-//         console.log("Pokemon API fetched");
+        // grab the pokemon data from the url
+        const pokemons = await axios.get(pokemonApi);
+        console.log("Pokemon API fetched");
 
-//         // insert the data into the db
-//         try {
-//             const res = await Pokemon.insertMany(pokemons.data);
-//             console.log("Pokemon inserted into db");
-//         } catch (err) {
-//             console.log("ERROR: Pokemon not inserted into db")
-//             console.log(err);
-//         }
-//     });
-// })
-// start();
+        // insert the data into the db
+        try {
+            const res = await Pokemon.insertMany(pokemons.data);
+            console.log("Pokemon inserted into db");
+        } catch (err) {
+            console.log("ERROR: Pokemon not inserted into db")
+            console.log(err);
+        }
+    });
+})
+start();
 
 // ======================= Authenticate User =======================
 const authUser = asyncWrapper(async (req, res, next) => {

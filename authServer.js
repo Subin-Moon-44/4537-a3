@@ -20,20 +20,20 @@ const Pokemon = require('./models/pokemon.js');
 
 const app = express()
 
-// const start = asyncWrapper(async () => {
-//     await connectDB({ "drop": false });
+const start = asyncWrapper(async () => {
+    await connectDB({ "drop": false });
 
-//     app.listen(process.env.authServerPORT, async (err) => {
-//         if (err)
-//             throw new PokemonDbError(err)
-//         else
-//             console.log(`Phew! Server is running on port: ${process.env.authServerPORT}`);
-//         const doc = await User.findOne({ "username": "admin" })
-//         if (!doc)
-//             User.create({ username: "admin", password: bcrypt.hashSync("admin", 10), role: "admin", email: "admin@admin.ca" })
-//     })
-// })
-// start();
+    app.listen(process.env.authServerPORT, async (err) => {
+        if (err)
+            throw new PokemonDbError(err)
+        else
+            console.log(`Phew! Server is running on port: ${process.env.authServerPORT}`);
+        const doc = await User.findOne({ "username": "admin" })
+        if (!doc)
+            User.create({ username: "admin", password: bcrypt.hashSync("admin", 10), role: "admin", email: "admin@admin.ca" })
+    })
+})
+start();
 
 app.use(express.json())
 app.use(cors({
