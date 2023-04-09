@@ -3,8 +3,8 @@ mongoose.set("strictQuery", false);
 const express = require("express");
 const axios = require("axios");
 const jwt = require('jsonwebtoken');
-const Pokemon = require('./models/pokemon');
-const User = require('./models/user');
+const Pokemon = require('./src/models/pokemon');
+const User = require('./src/models/user');
 const { connectDB } = require('./connectDB');
 const { populatePokemons } = require('./populatePokemons');
 const { getTypes } = require('./getTypes');
@@ -12,7 +12,7 @@ const { handleErr } = require('./errorHandler');
 const { handleReq } = require("./logHandler.js");
 const { asyncWrapper } = require('./asyncWrapper');
 const pokemonApi = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
-const port = process.env.appServerPORT || 3000;
+const port = process.env.appServerPORT || 8080;
 
 const {
     PokemonBadRequest,
@@ -31,73 +31,85 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(handleReq);
-
 const cors = require('cors');
 app.use(cors());
 
+var pokeModel = null;
+
 const start = asyncWrapper(async () => {
     await connectDB();
-    const pokeSchema = await getTypes();
-    pokeModel = await populatePokemons(pokeSchema);
 
-    app.listen(process.env.pokeServerPORT, (err) => {
-        if (err)
-            throw new PokemonDbError(err)
-        else
-            console.log(`Phew! Server is running on port: ${process.env.pokeServerPORT}`);
-    })
+    app.listen(port, async () => {
+        console.log(`Server running at http://localhost:${port}`);
+
+        // grab the pokemon data from the url
+        const pokemons = await axios.get(pokemonApi);
+        console.log("Pokemon API fetched");
+
+        // insert the data into the db
+        try {
+            const res = await Pokemon.insertMany(pokemons.data);
+            console.log("Pokemon inserted into db");
+        } catch (err) {
+            console.log("ERROR: Pokemon not inserted into db")
+            console.log(err);
+        }
+    });
 })
-start()
+start();
 
+app.use(express.json());
+app.use(handleReq);
 // ======================= Authenticate User =======================
 const authUser = asyncWrapper(async (req, res, next) => {
-    const appid = req.query.appid;
-    if (!appid) {
+    const token = req.query.appid;
+    if (!token) {
         throw new PokemonBadRequest("Access Denied");
     }
+
+    const userWithToken = await User.findOne({ token });
+    if (!userWithToken || userWithToken.token_invalid) {
+        throw new PokemonAuthError('Please Login.');
+    }
+
     try {
-        const verified = await User.findOne({ appid })
-        if (!verified || !verified.isAuthenticated) {
-            throw new PokemonBadRequest("User is not authenticated")
-        }
+        const verified = jwt.verify(token, process.env.TOKEN_SECRET)
         next()
     } catch (err) {
-        throw err;
+        throw new PokemonAuthError("Invalid user");
     }
 })
 
 // ======================= Authenticate Admin =======================
 const authAdmin = asyncWrapper(async (req, res, next) => {
-    const appid = req.query.appid;
-    const user = await User.findOne({ appid })
-    if (!user || user.role !== 'admin') {
-        throw new PokemonBadRequest("Access Denied");
+    const user = await User.findOne({ token: req.query.appid });
+    if (user.role !== 'admin') {
+        throw new PokemonAuthError("Acess Denied");
+    }
+    next()
+})
+
+app.get('/', async (req, res) => {
+    try {
+        const msg = "Hi!";
+        res.status(200).json({ msg: msg });
+    } catch (erro) {
+        res.status(500).json({ errMsg: "Error: Failed to open the page" });
     }
 })
 
-// app.get('/', async (req, res) => {
-//     try {
-//         const msg = "Hi!";
-//         res.status(200).json({ msg: msg });
-//     } catch (erro) {
-//         res.status(500).json({ errMsg: "Error: Failed to open the page" });
-//     }
-// })
-
-// ======================= User Only =======================
-app.use(authUser);
-
-app.get('/api/v1/all', async (req, res) => {
+app.get('/api/v1/all/', async (req, res) => {
     try {
-        let pokemons = await Pokemon.find();
+        let pokemons = await Pokemon.find().exec();
         res.status(200).json(pokemons);
     } catch (err) {
         res.status(500);
         res.json({ errMsg: 'Error: Invalid query' });
     }
 })
+
+// ======================= User Only =======================
+app.use(authUser);
 
 app.get('/api/v1/pokemons', async (req, res) => {
     try {

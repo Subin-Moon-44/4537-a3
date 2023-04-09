@@ -10,23 +10,36 @@ function FilteredResult({ types, checkedState, nameState }) {
     const [pokemonsPerPage] = useState(10);
 
     useEffect(() => {
-        axios.get('https://localhost:3000/api/v1/all')
+        axios.get('http://localhost:8080/api/v1/all')
             .then(res => res.data)
             .then(data => {
                 // Filter the data based on the checkedState
                 data = (data.filter(pokemon => checkedState.every((checked, i) => !checked || pokemon.type.includes(types.current[i]))));
+                // Filter based on the name search
+                data = (data.filter(pokemon => pokemon.name.english.toLowerCase().includes(nameState.toLowerCase())));
+                return data;
             })
-    })
+            .then(res => {
+                setPokemons(res)
+                setCurrentPage(1)
+            })
+            .catch(err => console.log(err));
+    }, [checkedState, nameState, types])
+
+    const indexOfLastItem = currentPage * pokemonsPerPage;
+    const indexOfFirstItem = indexOfLastItem - pokemonsPerPage;
+    const currentPokemons = pokemons.slice(indexOfFirstItem, indexOfLastItem);
+    const numPage = Math.ceil(pokemons.length / pokemonsPerPage);
 
     return (
         <Box>
             <Stack mb="3" p="2" spacing={{ base: '2', md: '3' }} textAlign="center" align="center">
-                <Heading size='md'>Pokemon List</Heading>
+                <Heading size='lg'>Pokemon List</Heading>
             </Stack>
-            <Page />
-            <Pagination />
+            <Page currentPokemons={currentPokemons} currentPage={currentPage} />
+            <Pagination numPage={numPage} currentPage={currentPage} setCurrentPage={setCurrentPage} />
         </Box>
     )
 }
 
-export default FilteredResult
+export default FilteredResult;

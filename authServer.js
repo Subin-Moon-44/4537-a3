@@ -3,24 +3,22 @@ const { handleErr } = require("./errorHandler.js")
 const { asyncWrapper } = require("./asyncWrapper.js")
 const dotenv = require("dotenv")
 dotenv.config();
-const User = require("./models/user");
+const User = require("./src/models/user");
 const { connectDB } = require("./connectDB.js")
 const cors = require("cors")
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
-
 
 const {
     PokemonBadRequest,
     PokemonDbError,
     PokemonAuthError
 } = require("./errors.js");
-const { useColorModeValue } = require('@chakra-ui/react');
 
 const app = express()
 
 const start = asyncWrapper(async () => {
-    await connectDB({ "drop": false });
+    await connectDB();
 
     app.listen(process.env.authServerPORT, async (err) => {
         if (err)
@@ -31,10 +29,11 @@ const start = asyncWrapper(async () => {
 })
 start();
 
+
 app.use(express.json())
 app.use(cors())
 
-app.post('/register', asyncWrapper(async (req, res) => {
+app.post('/register', asyncWrapper(async (req, res, next) => {
     const { username, password, email } = req.body;
     console.log(req.body);
     const salt = await bcrypt.genSalt(10);
@@ -52,7 +51,7 @@ app.post('/register', asyncWrapper(async (req, res) => {
     res.send(user)
 }))
 
-app.post('/login', asyncWrapper(async (req, res) => {
+app.post('/login', asyncWrapper(async (req, res, next) => {
     if (!req.body.hasOwnProperty('username') || !req.body.hasOwnProperty('password')) {
         throw new PokemonAuthError('Invalid Payload: Please provide username and password');
     }
@@ -67,19 +66,26 @@ app.post('/login', asyncWrapper(async (req, res) => {
         throw new PokemonAuthError("Password is incorrect");
     }
 
-    user = await User.findOneAndUpdate({_id: user._id}, {$set: {isAuthenticated: true}}, {new: true});
-    res.header('auth-token', user.token);
-    res.send(user);
+    if (!user.token) {
+        const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET)
+        await User.updateOne({ username }, { token })
+        res.header('auth-token', token)
+    } else {
+        res.header('auth-token', user.token);
+    }
+
+    const updateUser = await User.findOneAndUpdate({ _id: user._id }, { $set: { isAuthenticated: true } }, { new: true });
+    res.send(updateUser);
 }))
 
-app.post('/logout', asyncWrapper(async (req, res) => {
+app.post('/logout', asyncWrapper(async (req, res, next) => {
     const appid = req.body.appid;
-    const verified = await User.findOne({appid});
+    const verified = await User.findOne({ appid });
     if (!verified) {
         throw new PokemonAuthError("Invalid token")
     } else {
-        await User.findOneAndUpdate({appid: appid}, {$set: {isAuthenticated: false}}, {new: true})
-        res.json({status: "OK", message: "Logged out"})
+        await User.findOneAndUpdate({ appid: appid }, { $set: { isAuthenticated: false } }, { new: true })
+        res.json({ status: "OK", message: "Logged out" })
     }
 }))
 

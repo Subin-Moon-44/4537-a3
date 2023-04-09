@@ -24,7 +24,6 @@ function Search({ types, checkedState, setCheckedState, setNameState }) {
                         placeholder='Enter pokemon name'
                         onChange={(e) => onChangeNameSearch(e)} />
                 </InputGroup>
-                <Button bg="#4488BF" color="white">Search</Button>
             </HStack>
             <SimpleGrid columns={3} spacing={1} mb={5}>
                 {types.current.map(type => {

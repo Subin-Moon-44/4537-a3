@@ -11,11 +11,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 function App() {
     const isAuthed = () => {
         const appid = localStorage.getItem('appid');
+        console.log(appid && appid.length > 0);
         return appid && appid.length > 0;
     }
 
     const isAdmin = () => {
         const role = localStorage.getItem('role');
+        console.log(isAuthed && role === 'admin' && role.length > 0);
         return isAuthed && role === 'admin' && role.length > 0;
     }
 

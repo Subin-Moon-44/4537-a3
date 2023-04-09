@@ -1,11 +1,11 @@
 const { mongoose } = require('mongoose')
 const RequestLog = require('./requestLog')
-const UserModel = require('./userModel.js')
+const User = require('./src/models/user.js')
 
 handleReq = (req, res, next) => {
     try {
         next()
-        UserModel.findOne({ appid: req.query.appid }).then((user) => {
+        User.findOne({ appid: req.query.appid }).then((user) => {
             if (user) {
                 const requestLog = new RequestLog({
                     username: user.username,

@@ -36,7 +36,6 @@ const schema = new mongoose.Schema({
     },
     appid: {
         type: String,
-        required: true
     },
     isAuthenticated: {
         type: Boolean,
