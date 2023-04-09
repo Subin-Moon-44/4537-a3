@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, VStack, Button, ButtonGroup } from '@chakra-ui/react';
+import { Box, Button, ButtonGroup } from '@chakra-ui/react';
 
 
 function Pagination({ numPage, currentPage, setCurrentPage }) {

@@ -1,4 +1,4 @@
-import { Box, SimpleGrid, HStack, InputGroup, Input, Button, Checkbox } from '@chakra-ui/react';
+import { Box, SimpleGrid, HStack, InputGroup, Input, Checkbox } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import React from 'react'
 
