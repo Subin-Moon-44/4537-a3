@@ -6,7 +6,10 @@ const jwt = require('jsonwebtoken');
 const Pokemon = require('./models/pokemon');
 const User = require('./models/user');
 const { connectDB } = require('./connectDB');
+const { populatePokemons } = require('./populatePokemons');
+const { getTypes } = require('./getTypes');
 const { handleErr } = require('./errorHandler');
+const { handleReq } = require("./logHandler.js");
 const { asyncWrapper } = require('./asyncWrapper');
 const pokemonApi = 'https://raw.githubusercontent.com/fanzeyi/pokemon.json/master/pokedex.json';
 const port = process.env.appServerPORT || 3000;
@@ -22,84 +25,80 @@ const {
     PokemonAuthError
 } = require("./errors.js");
 
+const requestLog = require('./requestLog.js');
+const errorLog = require('./errorLog.js');
 const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(handleReq);
+
+const cors = require('cors');
+app.use(cors());
 
 const start = asyncWrapper(async () => {
-    await connectDB({ "drop": false });
+    await connectDB();
+    const pokeSchema = await getTypes();
+    pokeModel = await populatePokemons(pokeSchema);
 
-    app.listen(port, async () => {
-        console.log(`Server running at http://localhost:${port}`);
-
-        // grab the pokemon data from the url
-        const pokemons = await axios.get(pokemonApi);
-        console.log("Pokemon API fetched");
-
-        // insert the data into the db
-        try {
-            const res = await Pokemon.insertMany(pokemons.data);
-            console.log("Pokemon inserted into db");
-        } catch (err) {
-            console.log("ERROR: Pokemon not inserted into db")
-            console.log(err);
-        }
-    });
+    app.listen(process.env.pokeServerPORT, (err) => {
+        if (err)
+            throw new PokemonDbError(err)
+        else
+            console.log(`Phew! Server is running on port: ${process.env.pokeServerPORT}`);
+    })
 })
-start();
+start()
 
 // ======================= Authenticate User =======================
 const authUser = asyncWrapper(async (req, res, next) => {
-    let token = "";
-
-    try {
-        token = req.header('authorization').split(" ")[1];
-        console.log("token: ", token);
-    } catch (err) {
-        throw new PokemonAuthError("No Token: Please provide the access token using the headers.");
+    const appid = req.query.appid;
+    if (!appid) {
+        throw new PokemonBadRequest("Access Denied");
     }
-
     try {
-        const verified = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        req.user = verified.user;
-        next();
+        const verified = await User.findOne({ appid })
+        if (!verified || !verified.isAuthenticated) {
+            throw new PokemonBadRequest("User is not authenticated")
+        }
+        next()
     } catch (err) {
-        throw new PokemonAuthError("Invalid Token Verification. Log in again.");
+        throw err;
     }
 })
 
 // ======================= Authenticate Admin =======================
 const authAdmin = asyncWrapper(async (req, res, next) => {
-    const token = req.header('authorization').split(" ")[1];
-    if (!token) {
-        throw new PokemonAuthError("No Token: Please provide the access token using the headers.");
-    }
-
-    try {
-        const payload = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        if (payload?.user?.role == "admin") {
-            return next();
-        }
-        throw new PokemonAuthError("Access denied");
-
-    } catch (err) {
-        throw new PokemonAuthError("Invalid Token Verification. Log in again.");
+    const appid = req.query.appid;
+    const user = await User.findOne({ appid })
+    if (!user || user.role !== 'admin') {
+        throw new PokemonBadRequest("Access Denied");
     }
 })
 
-app.get('/', async (req, res) => {
-    try {
-        const msg = "Hi!";
-        res.status(200).json({ msg: msg });
-    } catch (erro) {
-        res.status(500).json({ errMsg: "Error: Failed to open the page" });
-    }
-})
+// app.get('/', async (req, res) => {
+//     try {
+//         const msg = "Hi!";
+//         res.status(200).json({ msg: msg });
+//     } catch (erro) {
+//         res.status(500).json({ errMsg: "Error: Failed to open the page" });
+//     }
+// })
 
 // ======================= User Only =======================
 app.use(authUser);
+
+app.get('/api/v1/all', async (req, res) => {
+    try {
+        let pokemons = await Pokemon.find();
+        res.status(200).json(pokemons);
+    } catch (err) {
+        res.status(500);
+        res.json({ errMsg: 'Error: Invalid query' });
+    }
+})
+
 app.get('/api/v1/pokemons', async (req, res) => {
     try {
         let pokemons = await Pokemon.find();
@@ -169,6 +168,14 @@ app.get('/api/v1/pokemonImage/:id', (req, res) => {
 
 // ======================= Admin Only =======================
 app.use(authAdmin);
+
+// Get reports according to the report id
+app.get('/report', (req, res) => {
+    console.log("Report requested");
+    res.send(`Table ${req.query.id}`);
+    // TODO: Implement report generation
+})
+
 // Create a new pokemon
 app.post('/api/v1/pokemon', async (req, res) => {
     // Check duplicates
@@ -257,12 +264,6 @@ app.delete('/api/v1/pokemon/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ errMsg: "Error: Invalid query" });
     }
-})
-
-app.get('/report', (req, res) => {
-    console.log("Report requested");
-    res.send(`Table ${req.query.id}`);
-    // TODO: Implement report generation
 })
 
 app.all('*', (req, res) => {

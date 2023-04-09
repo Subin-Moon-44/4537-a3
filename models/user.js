@@ -33,8 +33,16 @@ const schema = new mongoose.Schema({
         trim: true,
         default: "user",
         enum: ["user", "admin"]
+    },
+    appid: {
+        type: String,
+        required: true
+    },
+    isAuthenticated: {
+        type: Boolean,
+        default: false,
+        required: true,
     }
-
 })
 
 module.exports = mongoose.model('pokeusers', schema); //pokeUser is the name of the collection in the db
