@@ -27,9 +27,6 @@ const start = asyncWrapper(async () => {
             throw new PokemonDbError(err)
         else
             console.log(`Phew! Server is running on port: ${process.env.authServerPORT}`);
-        const doc = await User.findOne({ "username": "admin" })
-        if (!doc)
-            User.create({ username: "admin", password: bcrypt.hashSync("admin", 10), role: "admin", email: "admin@admin.ca" })
     })
 })
 start();
@@ -75,7 +72,7 @@ app.post('/login', asyncWrapper(async (req, res) => {
     res.send(user);
 }))
 
-app.get('/logout', asyncWrapper(async (req, res) => {
+app.post('/logout', asyncWrapper(async (req, res) => {
     const appid = req.body.appid;
     const verified = await User.findOne({appid});
     if (!verified) {
