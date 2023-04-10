@@ -89,14 +89,9 @@ const authAdmin = asyncWrapper(async (req, res, next) => {
     next()
 })
 
-app.get('/', async (req, res) => {
-    try {
-        const msg = "Hi!";
-        res.status(200).json({ msg: msg });
-    } catch (erro) {
-        res.status(500).json({ errMsg: "Error: Failed to open the page" });
-    }
-})
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + "/public/index.html");
+});
 
 // ======================= User Only =======================
 app.use(authUser);
