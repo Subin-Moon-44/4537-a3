@@ -9,7 +9,7 @@ function Page({ currentPokemons }) {
 
     function handleClick(pokemonId) {
         const appid = localStorage.getItem('appid');
-        axios.get(`http://localhost:8080/api/v1/all?appid=${appid}`)
+        axios.get(`${process.env.PUBLIC_URL}/api/v1/all?appid=${appid}`)
             .then(res => res.data)
             .then(data => {
                 // filter based on the id

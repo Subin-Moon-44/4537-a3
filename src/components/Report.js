@@ -12,7 +12,7 @@ function Report() {
 
   useEffect(() => {
     const appid = localStorage.getItem('appid');
-    axios.get(`http://localhost:8080/api/v1/report/${reportId}?appid=${appid}`)
+    axios.get(`${process.env.PUBLIC_URL}/api/v1/report/${reportId}?appid=${appid}`)
       .then((res) => {
         setReportEntries(res.data);
       })
