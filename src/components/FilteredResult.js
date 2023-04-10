@@ -10,7 +10,8 @@ function FilteredResult({ types, checkedState, nameState }) {
     const [pokemonsPerPage] = useState(10);
 
     useEffect(() => {
-        axios.get('http://localhost:8080/api/v1/all')
+        const appid = localStorage.getItem('appid');
+        axios.get(`http://localhost:8080/api/v1/all?appid=${appid}`)
             .then(res => res.data)
             .then(data => {
                 // Filter the data based on the checkedState
@@ -32,7 +33,7 @@ function FilteredResult({ types, checkedState, nameState }) {
     const numPage = Math.ceil(pokemons.length / pokemonsPerPage);
 
     return (
-        <Box>
+        <Box alignItems='center'>
             <Stack mb="3" p="2" spacing={{ base: '2', md: '3' }} textAlign="center" align="center">
                 <Heading size='lg'>Pokemon List</Heading>
             </Stack>

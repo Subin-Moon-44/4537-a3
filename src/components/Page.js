@@ -8,7 +8,8 @@ function Page({ currentPokemons }) {
     const { isOpen, onOpen, onClose } = useDisclosure();
 
     function handleClick(pokemonId) {
-        axios.get('http://localhost:8080/api/v1/all')
+        const appid = localStorage.getItem('appid');
+        axios.get(`http://localhost:8080/api/v1/all?appid=${appid}`)
             .then(res => res.data)
             .then(data => {
                 // filter based on the id
