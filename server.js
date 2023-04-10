@@ -177,29 +177,30 @@ app.get('/api/v1/pokemonImage/:id', (req, res) => {
 
 // ======================= Admin Only =======================
 app.use(authAdmin);
-
 // Get reports according to the report id
 app.get('/api/v1/report/:reportid', asyncWrapper(async (req, res) => {
     const reportId = req.params.reportid;
     switch (reportId) {
         // Unique API users over a period of time
         case "1":
-            // last 24 hours
             const filter = {
-                date: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                date: {
+                    $gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                }
             }
-
-            const docs = await requestLog.find(filter).sort({ date: -1 }).limit(1000);
-            const uniqueUsers = [...new Set(docs.map(doc => doc.username))];
+            const docs = await requestLog.find(filter).sort({ date: -1 }).limit(1000)
+            const uniqueUsers = [...new Set(docs.map(doc => doc.username))]
+            // find email address of each user
+            const users = await User.find({ username: { $in: uniqueUsers } })
             const userUsage = uniqueUsers.map((user, index) => {
                 return {
                     index: index + 1,
                     user: user,
-                    endpoint: docs.find(doc => doc.username == user).endpoint
+                    count: docs.length,
+                    endpoint: ''
                 }
             })
-            userUsage.sort((a, b) => a.index.localeCompare(b.index));
-            res.json(userUsage);
+            res.json(userUsage)
             break;
         // Top API users over period of time
         case "2":
@@ -210,7 +211,8 @@ app.get('/api/v1/report/:reportid', asyncWrapper(async (req, res) => {
                 return {
                     index: index + 1,
                     user: user,
-                    count: docs2.filter(doc => doc.username == user).length
+                    count: docs2.filter(doc => doc.username == user).length,
+                    endpoint: ""
                 }
             })
             userUsage2.sort((a, b) => b.content - a.content);
@@ -218,36 +220,74 @@ app.get('/api/v1/report/:reportid', asyncWrapper(async (req, res) => {
             break;
         case "3":
             // Top Users for each API endpoint
-            const docs3 = await requestLog.find().sort({ date: -1 }).limit(1000)
-            const endpointList3 = [...new Set(docs3.map(doc => doc.endpoint))]
-            const endpointUsage3 = endpointList3.map(endpoint => {
-                const userList = docs3.filter(doc => doc.endpoint === endpoint).map(doc => doc.username)
-                const uniqueUsers = [...new Set(userList)]
-                const userCount = uniqueUsers.map(user => {
-                    return {
-                        username: user,
-                        count: userList.filter(u => u === user).length
+            const docs3 = await requestLog.aggregate([
+                {
+                    $match: {
+                        date: {
+                            $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                            $lte: new Date()
+                        }
                     }
-                })
+                },
+                {
+                    $group: {
+                        _id: "$endpoint",
+                        users: { $addToSet: "$username" },
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        endpoint: "$_id",
+                        count: 1,
+                        users: 1,
+                        topUser: { $arrayElemAt: ["$users", 0] }
+                    }
+                },
+                { $sort: { count: -1 } }
+            ]);
+
+            const endpointUsage3 = docs3.map((doc, index) => {
                 return {
-                    index: endpoint,
-                    content: userCount.sort((a, b) => b.count - a.count)[0].username
+                    index: index + 1,
+                    user: doc.topUser,
+                    count: doc.count,
+                    endpoint: doc.endpoint
                 }
-            })
+            });
             res.json(endpointUsage3)
             break;
         case "4":
-            // 4xx Errors list
-            const docs4 = await errorLog.find().sort({ date: -1 }).limit(1000)
-            // filter out 4xx errors
-            const errorList = docs4.filter(doc => doc.errorStatus >= 400 && doc.errorStatus < 500)
-            // construct return object with index and content
-            const response = errorList.map(error => {
+            const docs4 = await errorLog.aggregate([
+                {
+                    $match: {
+                        errorStatus: { $gte: 400, $lt: 500 }
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$endpoint",
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                {
+                    $limit: 10
+                }
+            ])
+
+            // Construct response object with index and content
+            const response = docs4.map((error, index) => {
                 return {
-                    index: error.endpoint,
-                    content: error.errorStatus + " - " + (error.errorMessage === "" || error.errorMessage === undefined ? "No message" : error.errorMessage)
+                    index: index + 1,
+                    user: error.count, // name convention: to be modified
+                    count: error._id, // name convention: to be modified
                 }
             })
+
             res.json(response)
             break;
         case "5":
@@ -256,10 +296,12 @@ app.get('/api/v1/report/:reportid', asyncWrapper(async (req, res) => {
             // filter out 4xx 5xx errors
             const errorList5 = docs5.filter(doc => doc.errorStatus >= 400 && doc.errorStatus < 600)
             // construct return object with index and content
-            const response5 = errorList5.map(error => {
+            const response5 = errorList5.map((error, index) => {
                 return {
-                    index: `${error.date.getFullYear()}-${error.date.getMonth() + 1}-${error.date.getDate()} ${error.date.getHours()}:${error.date.getMinutes()}`,
-                    content: error.errorStatus + " - " + error.endpoint
+                    index: index + 1,
+                    user: `${error.date.getFullYear()}-${error.date.getMonth() + 1}-${error.date.getDate()} ${error.date.getHours()}:${error.date.getMinutes()}`, // name convention: to be modified
+                    count: error.errorStatus, // name convention: to be modified
+                    endpoint: error.endpoint
                 }
             })
             res.json(response5)

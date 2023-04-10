@@ -19,8 +19,8 @@ function Report() {
   });
 
   const titles = [
-    'Unique API users over a period of time',
-    'Top API users over a period of time',
+    'Unique API users over a period of time (24h)',
+    'Top API users over a period of time (24h)',
     'Top users for each Endpoint',
     '4xx Errors By Endpoint',
     'Recent 4xx/5xx Errors'
@@ -30,7 +30,7 @@ function Report() {
     1: ['Index', 'Username', 'Count', ''],
     2: ['Index', 'Username', 'Count', ''],
     3: ['Index', 'Username', 'Count', 'Endpoint'],
-    4: ['Index', 'Method', 'Status', 'Endpoint'],
+    4: ['Index', 'Count', 'Endpoint', ''],
     5: ['Index', 'Date', 'Method', 'Status'],
   };
 
@@ -40,28 +40,28 @@ function Report() {
       } textAlign="center" align="center" >
         <Heading size='md'>Report {reportId && reportId} : {reportId && titles.length >= reportId && titles[reportId - 1]}</Heading>
       </Stack>
-      <TableContainer>
-        <Table variant='simple'>
-          <Thead>
-            <Tr>
-              {headers[reportId].map(heading => {
+      <TableContainer key={"table-wrapper"}>
+        <Table key={"table"} variant='simple'>
+          <Thead key={"table-thread"}>
+            <Tr key={"table-tr"}>
+              {headers[reportId].map((heading, index) => {
                 return (
                   <>
-                    <Th>{heading}</Th>
+                    <Th key={"table-th-" + index}>{heading}</Th>
                   </>
                 )
               })}
             </Tr>
           </Thead>
-          <Tbody>
-            {reportEntries.map(entry => {
+          <Tbody key={"table-tbody"}>
+            {reportEntries.map((entry, index) => {
               return (
                 <>
-                  <Tr>
-                    <Td key={entry.index}>{entry.index}</Td>
-                    <Td key={entry.user}>{entry.user}</Td>
-                    <Td key={entry.count}>{entry.user}</Td>
-                    <Td key={entry.enpoint}>{entry.endpoint}</Td>
+                  <Tr key={"table-tr" + index}>
+                    <Td key={"table-td-" + index + "0"}>{entry.index}</Td>
+                    <Td key={"table-td-" + index + "1"}>{entry.user}</Td>
+                    <Td key={"table-td-" + index + "2"}>{entry.count}</Td>
+                    <Td key={"table-td-" + index + "3"}>{entry.endpoint}</Td>
                   </Tr>
                 </>
               )
@@ -69,7 +69,7 @@ function Report() {
           </Tbody>
         </Table>
       </TableContainer>
-    </Box >
+    </Box>
   )
 }
 
