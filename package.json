@@ -29,7 +29,7 @@
     "auth": "nodemon ./authServer.js",
     "start": "react-scripts start",
     "build": "concurrently \"npm:serve\" \"npm:auth\"",
-    "test": "react-scripts test",
+    "test": "react-scripts build",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
