@@ -16,6 +16,7 @@ const {
 } = require("./errors.js");
 
 const app = express()
+app.use(cors())
 
 const start = asyncWrapper(async () => {
     await connectDB();
@@ -31,7 +32,6 @@ start();
 
 
 app.use(express.json())
-app.use(cors())
 
 app.post('/register', asyncWrapper(async (req, res, next) => {
     const { username, password, email } = req.body;
@@ -51,6 +51,12 @@ app.post('/register', asyncWrapper(async (req, res, next) => {
     res.send(user)
 }))
 
+app.options('/login', function (req, res) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader('Access-Control-Allow-Methods', '*');
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.end();
+});
 app.post('/login', asyncWrapper(async (req, res, next) => {
     if (!req.body.hasOwnProperty('username') || !req.body.hasOwnProperty('password')) {
         throw new PokemonAuthError('Invalid Payload: Please provide username and password');
@@ -69,7 +75,8 @@ app.post('/login', asyncWrapper(async (req, res, next) => {
     if (!user.token) {
         const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET)
         await User.updateOne({ username }, { token })
-        res.header('auth-token', token)
+        res.header("auth-token", token);
+        console.log(res)
     } else {
         res.header('auth-token', user.token);
     }

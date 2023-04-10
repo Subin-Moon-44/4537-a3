@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const Pokemon = require('./src/models/pokemon');
 const User = require('./src/models/user');
 const { connectDB } = require('./connectDB');
-const { populatePokemons } = require('./populatePokemons');
 const { getTypes } = require('./getTypes');
 const { handleErr } = require('./errorHandler');
 const { handleReq } = require("./logHandler.js");
@@ -31,10 +30,10 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
+var pokeModel = null;
+
 const cors = require('cors');
 app.use(cors());
-
-var pokeModel = null;
 
 const start = asyncWrapper(async () => {
     await connectDB();
@@ -60,31 +59,30 @@ start();
 
 app.use(express.json());
 app.use(handleReq);
+
 // ======================= Authenticate User =======================
 const authUser = asyncWrapper(async (req, res, next) => {
     const token = req.query.appid;
     if (!token) {
         throw new PokemonBadRequest("Access Denied");
     }
-
-    const userWithToken = await User.findOne({ token });
-    if (!userWithToken || userWithToken.token_invalid) {
-        throw new PokemonAuthError('Please Login.');
-    }
-
     try {
-        const verified = jwt.verify(token, process.env.TOKEN_SECRET)
+        const verifiedUser = await User.findOne({ appid: token })
+        if (!verifiedUser || !verifiedUser.isAuthenticated) {
+            throw new PokemonBadRequest("User is not authenticated")
+        }
         next()
     } catch (err) {
-        throw new PokemonAuthError("Invalid user");
+        throw err;
     }
 })
 
 // ======================= Authenticate Admin =======================
 const authAdmin = asyncWrapper(async (req, res, next) => {
-    const user = await User.findOne({ token: req.query.appid });
-    if (user.role !== 'admin') {
-        throw new PokemonAuthError("Acess Denied");
+    const appid = req.query.appid
+    const user = await User.findOne({ appid: appid })
+    if (!user || !user.role == 'admin') {
+        throw new PokemonBadRequest("Access denied")
     }
     next()
 })
@@ -98,6 +96,8 @@ app.get('/', async (req, res) => {
     }
 })
 
+// ======================= User Only =======================
+app.use(authUser);
 app.get('/api/v1/all/', async (req, res) => {
     try {
         let pokemons = await Pokemon.find().exec();
@@ -107,9 +107,6 @@ app.get('/api/v1/all/', async (req, res) => {
         res.json({ errMsg: 'Error: Invalid query' });
     }
 })
-
-// ======================= User Only =======================
-app.use(authUser);
 
 app.get('/api/v1/pokemons', async (req, res) => {
     try {
@@ -182,11 +179,93 @@ app.get('/api/v1/pokemonImage/:id', (req, res) => {
 app.use(authAdmin);
 
 // Get reports according to the report id
-app.get('/report', (req, res) => {
-    console.log("Report requested");
-    res.send(`Table ${req.query.id}`);
-    // TODO: Implement report generation
-})
+app.get('/api/v1/report/:reportid', asyncWrapper(async (req, res) => {
+    const reportId = req.params.reportid;
+    switch (reportId) {
+        // Unique API users over a period of time
+        case "1":
+            // last 24 hours
+            const filter = {
+                date: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+            }
+
+            const docs = await requestLog.find(filter).sort({ date: -1 }).limit(1000);
+            const uniqueUsers = [...new Set(docs.map(doc => doc.username))];
+            const userUsage = uniqueUsers.map((user, index) => {
+                return {
+                    index: index + 1,
+                    user: user,
+                    endpoint: docs.find(doc => doc.username == user).endpoint
+                }
+            })
+            userUsage.sort((a, b) => a.index.localeCompare(b.index));
+            res.json(userUsage);
+            break;
+        // Top API users over period of time
+        case "2":
+            const docs2 = await requestLog.find().sort({ date: -1 }).limit(1000)
+            const uniqueUsers2 = [...new Set(docs2.map(doc => doc.username))]
+            // count number of requests for each user
+            const userUsage2 = uniqueUsers2.map((user, index) => {
+                return {
+                    index: index + 1,
+                    user: user,
+                    count: docs2.filter(doc => doc.username == user).length
+                }
+            })
+            userUsage2.sort((a, b) => b.content - a.content);
+            res.json(userUsage2);
+            break;
+        case "3":
+            // Top Users for each API endpoint
+            const docs3 = await requestLog.find().sort({ date: -1 }).limit(1000)
+            const endpointList3 = [...new Set(docs3.map(doc => doc.endpoint))]
+            const endpointUsage3 = endpointList3.map(endpoint => {
+                const userList = docs3.filter(doc => doc.endpoint === endpoint).map(doc => doc.username)
+                const uniqueUsers = [...new Set(userList)]
+                const userCount = uniqueUsers.map(user => {
+                    return {
+                        username: user,
+                        count: userList.filter(u => u === user).length
+                    }
+                })
+                return {
+                    index: endpoint,
+                    content: userCount.sort((a, b) => b.count - a.count)[0].username
+                }
+            })
+            res.json(endpointUsage3)
+            break;
+        case "4":
+            // 4xx Errors list
+            const docs4 = await errorLog.find().sort({ date: -1 }).limit(1000)
+            // filter out 4xx errors
+            const errorList = docs4.filter(doc => doc.errorStatus >= 400 && doc.errorStatus < 500)
+            // construct return object with index and content
+            const response = errorList.map(error => {
+                return {
+                    index: error.endpoint,
+                    content: error.errorStatus + " - " + (error.errorMessage === "" || error.errorMessage === undefined ? "No message" : error.errorMessage)
+                }
+            })
+            res.json(response)
+            break;
+        case "5":
+            // recent 4xx/5xx errors
+            const docs5 = await errorLog.find().sort({ date: -1 }).limit(1000)
+            // filter out 4xx 5xx errors
+            const errorList5 = docs5.filter(doc => doc.errorStatus >= 400 && doc.errorStatus < 600)
+            // construct return object with index and content
+            const response5 = errorList5.map(error => {
+                return {
+                    index: `${error.date.getFullYear()}-${error.date.getMonth() + 1}-${error.date.getDate()} ${error.date.getHours()}:${error.date.getMinutes()}`,
+                    content: error.errorStatus + " - " + error.endpoint
+                }
+            })
+            res.json(response5)
+            break;
+    }
+}))
 
 // Create a new pokemon
 app.post('/api/v1/pokemon', async (req, res) => {
