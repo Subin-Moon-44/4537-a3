@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, ButtonGroup } from '@chakra-ui/react';
+import { Box, Button, ButtonGroup, Stack } from '@chakra-ui/react';
 
 
 function Pagination({ numPage, currentPage, setCurrentPage }) {
@@ -26,13 +26,13 @@ function Pagination({ numPage, currentPage, setCurrentPage }) {
     }
 
     return (
-        <Box>
+        <Stack align='center'>
             <ButtonGroup gap='1'>
                 {(currentPage !== 1) && (<Button onClick={prevPage}>prev</Button>)}
 
                 {
                     pageNumbers.map(num => {
-                        if (num < currentPage + 10 && num > currentPage - 10) {
+                        if (num < currentPage + 5 && num > currentPage - 5) {
                             return (
                                 <Button key={num} onClick={() => setCurrentPage(num)} className={(num === currentPage) ? 'active' : ''} backgroundColor={(num === currentPage) ? '#FFE338' : ''}>
                                     {num}
@@ -44,7 +44,7 @@ function Pagination({ numPage, currentPage, setCurrentPage }) {
 
                 {(currentPage !== numPage) && (<Button onClick={nextPage}>next</Button>)}
             </ButtonGroup>
-        </Box>
+        </Stack>
     )
 }
 
