@@ -58,6 +58,8 @@ const start = asyncWrapper(async () => {
 start();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // read URL encoded body
+app.use(express.static(__dirname + '/public'));
 app.use(handleReq);
 
 // ======================= Authenticate User =======================

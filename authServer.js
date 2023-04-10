@@ -16,6 +16,8 @@ const {
 } = require("./errors.js");
 
 const app = express()
+app.use(express.urlencoded({ extended: true })); // read URL encoded body
+app.use(express.static(__dirname + '/public'));
 app.use(cors())
 
 const start = asyncWrapper(async () => {
