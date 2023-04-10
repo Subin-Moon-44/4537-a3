@@ -10,7 +10,7 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${process.env.AUTHSERVER_URL}/login`, { username, password });
+      const res = await axios.post(`${process.env.REACT_APP_AUTHSERVER_URL}/login`, { username, password });
       console.log(res.data);
       const user = res.data;
       if (user.role === 'admin' && user.isAuthenticated) {

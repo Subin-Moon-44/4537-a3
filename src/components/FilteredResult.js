@@ -11,7 +11,7 @@ function FilteredResult({ types, checkedState, nameState }) {
 
     useEffect(() => {
         const appid = localStorage.getItem('appid');
-        axios.get(`${process.env.SERVER_URL}/api/v1/all?appid=${appid}`)
+        axios.get(`${process.env.REACT_APP_SERVER_URL}/api/v1/all?appid=${appid}`)
             .then(res => res.data)
             .then(data => {
                 // Filter the data based on the checkedState
