@@ -13,7 +13,7 @@ function NavBar() {
         localStorage.removeItem('appid');
         localStorage.removeItem('role');
         localStorage.removeItem('currentPage');
-        axios.post(`${process.env.PUBLIC_URL}/logout`, { appid: appid }).then(() => { });
+        axios.post(`${process.env.AUTHSERVER_URL}/logout`, { appid: appid }).then(() => { });
         window.location.href = '/login';
     }
 
